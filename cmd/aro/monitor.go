@@ -7,7 +7,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm/policy"
 	"github.com/Azure/go-autorest/tracing"
 	"github.com/sirupsen/logrus"
 	kmetrics "k8s.io/client-go/tools/metrics"
@@ -83,21 +82,7 @@ func monitor(ctx context.Context, log *logrus.Entry) error {
 		return err
 	}
 
-	if err := env.ValidateVars(envDatabaseAccountName); err != nil {
-		return err
-	}
-
-	dbAccountName := os.Getenv(envDatabaseAccountName)
-	clientOptions := &policy.ClientOptions{
-		ClientOptions: _env.Environment().ManagedIdentityCredentialOptions().ClientOptions,
-	}
-	logrusEntry := log.WithField("component", "database")
-	dbAuthorizer, err := database.NewMasterKeyAuthorizer(ctx, logrusEntry, msiToken, clientOptions, _env.SubscriptionID(), _env.ResourceGroup(), dbAccountName)
-	if err != nil {
-		return err
-	}
-
-	dbc, err := database.NewDatabaseClient(log.WithField("component", "database"), _env, dbAuthorizer, &noop.Noop{}, aead, dbAccountName)
+	dbc, err := service.NewDatabaseClientUsingMasterKey(ctx, _env, log, &noop.Noop{}, msiAuthorizer, aead)
 	if err != nil {
 		return err
 	}
