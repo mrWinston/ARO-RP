@@ -158,6 +158,7 @@ func (m *manager) getOperatorUpdateSteps() []steps.Step {
 		// The following are dependent on initializeOperatorDeployer.
 		steps.Condition(m.aroDeploymentReady, 20*time.Minute, true),
 		steps.Condition(m.ensureAROOperatorRunningDesiredVersion, 5*time.Minute, true),
+		steps.Action(m.syncClusterObject),
 	}
 	return utilgenerics.ConcatMultipleSlices(m.getEnsureAPIServerReadySteps(), steps)
 }
