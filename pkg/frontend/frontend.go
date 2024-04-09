@@ -184,11 +184,6 @@ func NewFrontend(ctx context.Context,
 		now:                          time.Now,
 		systemDataClusterDocEnricher: enrichClusterSystemData,
 
-		systemDataSyncSetEnricher:              enrichSyncSetSystemData,
-		systemDataMachinePoolEnricher:          enrichMachinePoolSystemData,
-		systemDataSyncIdentityProviderEnricher: enrichSyncIdentityProviderSystemData,
-		systemDataSecretEnricher:               enrichSecretSystemData,
-
 		streamResponder: defaultResponder{},
 	}
 
@@ -241,18 +236,6 @@ func (f *frontend) chiAuthenticatedRoutes(router chi.Router) {
 
 			r.Route("/{resourceName}", func(r chi.Router) {
 				r.With(f.apiVersionMiddleware.ValidateAPIVersion).Route("/", func(r chi.Router) {
-					// With API version check
-					if f.env.FeatureIsSet(env.FeatureEnableOCMEndpoints) {
-						r.Route("/{ocmResourceType}",
-							func(r chi.Router) {
-								r.Delete("/{ocmResourceName}", f.deleteClusterManagerConfiguration)
-								r.Get("/{ocmResourceName}", f.getClusterManagerConfiguration)
-								r.Patch("/{ocmResourceName}", f.putOrPatchClusterManagerConfiguration)
-								r.Put("/{ocmResourceName}", f.putOrPatchClusterManagerConfiguration)
-							},
-						)
-					}
-
 					r.Delete("/", f.deleteOpenShiftCluster)
 					r.Get("/", f.getOpenShiftCluster)
 					r.Patch("/", f.putOrPatchOpenShiftCluster)
