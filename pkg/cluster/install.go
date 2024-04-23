@@ -158,6 +158,13 @@ func (m *manager) getOperatorUpdateSteps() []steps.Step {
 		// The following are dependent on initializeOperatorDeployer.
 		steps.Condition(m.aroDeploymentReady, 20*time.Minute, true),
 		steps.Condition(m.ensureAROOperatorRunningDesiredVersion, 5*time.Minute, true),
+		// Once the ARO Operator is updated, synchronize the Cluster object.
+		// This is done after the ARO Operator is potentially updated so that
+		// any flag changes that happen in the same request only apply on the
+		// new Operator. Otherwise, it is possible for a flag change to occur on
+		// the old Operator version, then require reconciling to a new version a
+		// second time (e.g. DNSMasq changes) with the associated node cyclings
+		// for the resource updates.
 		steps.Action(m.syncClusterObject),
 	}
 	return utilgenerics.ConcatMultipleSlices(m.getEnsureAPIServerReadySteps(), steps)
