@@ -479,7 +479,6 @@ func (g *generator) rpVMSS() *arm.Resource {
 		"miseLogLevel",
 		"miseAddress",
 		"miseAllowedHosts",
-		"otelImage",
 		"portalAccessGroupIds",
 		"portalClientId",
 		"portalElevatedGroupIds",
