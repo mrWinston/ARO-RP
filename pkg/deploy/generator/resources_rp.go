@@ -1002,6 +1002,7 @@ func (g *generator) rpCosmosDB() []*arm.Resource {
 				},
 			},
 			MinimalTLSVersion: &minTLSVersion,
+			DisableLocalAuth:  to.BoolPtr(true), // Disable local authentication
 		},
 		Name:     to.StringPtr("[parameters('databaseAccountName')]"),
 		Type:     to.StringPtr("Microsoft.DocumentDB/databaseAccounts"),
