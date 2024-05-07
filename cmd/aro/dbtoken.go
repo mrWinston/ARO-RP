@@ -8,8 +8,10 @@ import (
 	"net"
 	"os"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm/policy"
 	"github.com/sirupsen/logrus"
 
+	"github.com/Azure/ARO-RP/pkg/database"
 	"github.com/Azure/ARO-RP/pkg/database/cosmosdb"
 	pkgdbtoken "github.com/Azure/ARO-RP/pkg/dbtoken"
 	"github.com/Azure/ARO-RP/pkg/env"
@@ -54,12 +56,27 @@ func dbtoken(ctx context.Context, log *logrus.Entry) error {
 
 	go g.Run()
 
-	dbName, err := service.DBName(_env.IsLocalDevelopmentMode())
+	if err := env.ValidateVars(envDatabaseAccountName); err != nil {
+		return err
+	}
+
+	dbAccountName := os.Getenv(envDatabaseAccountName)
+
+	clientOptions := &policy.ClientOptions{
+		ClientOptions: _env.Environment().ManagedIdentityCredentialOptions().ClientOptions,
+	}
+	logrusEntry := log.WithField("component", "database")
+	dbAuthorizer, err := database.NewMasterKeyAuthorizer(ctx, logrusEntry, msiToken, clientOptions, _env.SubscriptionID(), _env.ResourceGroup(), dbAccountName)
 	if err != nil {
 		return err
 	}
 
-	dbc, err := service.NewDatabaseClientUsingMasterKey(ctx, _env, log, m, msiAuthorizer, nil)
+	dbc, err := database.NewDatabaseClient(log.WithField("component", "database"), _env, dbAuthorizer, m, nil, dbAccountName)
+	if err != nil {
+		return err
+	}
+
+	dbName, err := DBName(_env.IsLocalDevelopmentMode())
 	if err != nil {
 		return err
 	}
