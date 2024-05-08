@@ -121,7 +121,7 @@ func main() {
 					}
 					go g.Run()
 
-					dbc, err := service.NewDatabase(ctx.Context, _env, log, m, service.DB_ALWAYS_MASTERKEY, false)
+					dbc, err := service.NewDatabase(ctx.Context, _env, log, m, false)
 					if err != nil {
 						return err
 					}
