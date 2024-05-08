@@ -310,11 +310,11 @@ service:
       receivers: [podman_stats, hostmetrics]
       processors: [memory_limiter, batch]
       exporters: [otlp]
-'EOF'
+EOF
 
 cat >/etc/sysconfig/otel-collector <<'EOF'
 GOMEMLIMIT=1000MiB
-'EOF'
+EOF
 
 cat >/etc/systemd/system/otel-collector.service <<'EOF'
 [Unit]
@@ -383,11 +383,11 @@ service:
       receivers: [podman_stats, hostmetrics]
       processors: [memory_limiter, batch]
       exporters: [otlp]
-'EOF'
+EOF
 
 cat >/etc/sysconfig/otel-collector <<'EOF'
 GOMEMLIMIT=1000MiB
-'EOF'
+EOF
 
 cat >/etc/systemd/system/otel-collector.service <<'EOF'
 [Unit]
