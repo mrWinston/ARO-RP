@@ -69,12 +69,10 @@ func (c *HookingClient) WithPostCreateHook(f hookFunc) *HookingClient {
 	c.postCreateHook = append(c.postCreateHook, f)
 	return c
 }
-
 func (c *HookingClient) WithPostUpdateHook(f hookFunc) *HookingClient {
 	c.postUpdateHook = append(c.postUpdateHook, f)
 	return c
 }
-
 func (c *HookingClient) WithPostPatchHook(f hookFunc) *HookingClient {
 	c.postPatchHook = append(c.postPatchHook, f)
 	return c
@@ -98,7 +96,6 @@ func (c *HookingClient) WithPreUpdateHook(f hookFunc) *HookingClient {
 	c.preUpdateHook = append(c.preUpdateHook, f)
 	return c
 }
-
 func (c *HookingClient) WithPrePatchHook(f hookFunc) *HookingClient {
 	c.prePatchHook = append(c.prePatchHook, f)
 	return c

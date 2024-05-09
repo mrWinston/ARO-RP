@@ -229,12 +229,7 @@ func (o *operator) resources(ctx context.Context) ([]kruntime.Object, error) {
 		return nil, err
 	}
 
-	domain := o.oc.Properties.ClusterProfile.Domain
-	if !strings.ContainsRune(domain, '.') {
-		domain += "." + o.env.Domain()
-	}
-
-	cluster, err := o.clusterObject(ctx)
+	cluster, err := o.clusterObject()
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +252,7 @@ func (o *operator) resources(ctx context.Context) ([]kruntime.Object, error) {
 	), nil
 }
 
-func (o *operator) clusterObject(ctx context.Context) (*arov1alpha1.Cluster, error) {
+func (o *operator) clusterObject() (*arov1alpha1.Cluster, error) {
 	vnetID, _, err := apisubnet.Split(o.oc.Properties.MasterProfile.SubnetID)
 	if err != nil {
 		return nil, err
