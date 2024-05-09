@@ -147,3 +147,17 @@ func (mr *MockOperatorMockRecorder) SetForceReconcile(arg0, arg1 interface{}) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetForceReconcile", reflect.TypeOf((*MockOperator)(nil).SetForceReconcile), arg0, arg1)
 }
+
+// SyncClusterObject mocks base method.
+func (m *MockOperator) SyncClusterObject(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncClusterObject", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SyncClusterObject indicates an expected call of SyncClusterObject.
+func (mr *MockOperatorMockRecorder) SyncClusterObject(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncClusterObject", reflect.TypeOf((*MockOperator)(nil).SyncClusterObject), arg0)
+}
