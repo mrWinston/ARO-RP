@@ -270,6 +270,7 @@ StartLimitInterval=0
 WantedBy=multi-user.target
 EOF
 
+systemctl enable --now podman.socket
 mkdir -p /app/otel
 cat >/app/otel/config.yaml <<'EOF'
 receivers:
@@ -312,17 +313,18 @@ service:
       exporters: [otlp]
 EOF
 
-cat >/etc/sysconfig/otel-collector <<'EOF'
+cat >/etc/sysconfig/aro-otel-collector <<'EOF'
 GOMEMLIMIT=1000MiB
+OTELIMAGE='$OTELIMAGE'
 EOF
 
-cat >/etc/systemd/system/otel-collector.service <<'EOF'
+cat >/etc/systemd/system/aro-otel-collector.service <<'EOF'
 [Unit]
 After=mdm.service
 Wants=mdm.service
 
 [Service]
-EnvironmentFile=/etc/sysconfig/otel-collector
+EnvironmentFile=/etc/sysconfig/aro-otel-collector
 ExecStartPre=-/usr/bin/docker rm -f %N
 ExecStart=/usr/bin/docker run \
   --security-opt label=disable \
@@ -331,80 +333,7 @@ ExecStart=/usr/bin/docker run \
   --rm \
   --net=host \
   -m 2g \
-  -v /var/run/podman.sock:/var/run/podman.sock \
-  -v /app/otel/config.yaml:/etc/otelcol-contrib/config.yaml \
-  $OTELIMAGE
-ExecStop=/usr/bin/docker stop %N
-Restart=always
-RestartSec=1
-StartLimitInterval=0
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-mkdir -p /app/otel
-cat >/app/otel/config.yaml <<'EOF'
-receivers:
-  podman_stats:
-    collection_interval: 15s
-    timeout: 20s
-
-  hostmetrics:
-    scrapers:
-      cpu:
-      disk:
-      filesystem:
-      load:
-      memory:
-      network:
-      process:
-      processes:
-      paging:
-
-processors:
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 700
-    spike_limit_mib: 200
-
-  batch:
-
-exporters:
-  otlp:
-    endpoint: mdm:4317
-    tls:
-      insecure: true
-
-service:
-  extensions: [podman_stats, hostmetrics]
-  pipelines:
-    metrics:
-      receivers: [podman_stats, hostmetrics]
-      processors: [memory_limiter, batch]
-      exporters: [otlp]
-EOF
-
-cat >/etc/sysconfig/otel-collector <<'EOF'
-GOMEMLIMIT=1000MiB
-EOF
-
-cat >/etc/systemd/system/otel-collector.service <<'EOF'
-[Unit]
-After=mdm.service
-Wants=mdm.service
-
-[Service]
-EnvironmentFile=/etc/sysconfig/otel-collector
-ExecStartPre=-/usr/bin/docker rm -f %N
-ExecStart=/usr/bin/docker run \
-  --security-opt label=disable \
-  --hostname %H \
-  --name %N \
-  --rm \
-  --net=host \
-  -m 2g \
-  -v /var/run/podman.sock:/var/run/podman.sock \
+  -v /var/run/podman/podman.sock:/run/podman/podman.sock \
   -v /app/otel/config.yaml:/etc/otelcol-contrib/config.yaml \
   $OTELIMAGE
 ExecStop=/usr/bin/docker stop %N
@@ -424,7 +353,7 @@ fi
 
 mkdir -p /app/mise
 echo "configuring MISE service"
-cat >/etc/sysconfig/mise <<EOF
+cat >/etc/sysconfig/aro-mise <<EOF
 AZURECLOUDNAME='$AZURECLOUDNAME'
 ARMCLIENTID='$ARMCLIENTID'
 FPCLIENTID='$FPCLIENTID'
@@ -439,7 +368,7 @@ LOGININSTANCE='$LOGININSTANCE'
 LOGINURL='$LOGINURL'
 EOF
 
-cat >/app/appsettings.json <<EOF
+cat >/app/mise/appsettings.json <<EOF
 {
     "Version": "1",
     "HeartbeatIntervalMs": 5000,
@@ -461,7 +390,7 @@ cat >/app/appsettings.json <<EOF
                     "ValidateM": true,
                     "ValidateU": true,
                     "ValidateP": true
-                }
+                },
                 "ValidApplicationIds": $MISEVALIDAPPIDS
             }
         ],
@@ -493,7 +422,7 @@ cat >/app/appsettings.json <<EOF
 }
 EOF
 
-cat >/etc/systemd/system/mise.service <<'EOF'
+cat >/etc/systemd/system/aro-mise.service <<'EOF'
 [Unit]
 After=network-online.target
 Wants=network-online.target
@@ -501,11 +430,11 @@ StartLimitIntervalSec=0
 
 [Service]
 RestartSec=1s
-EnvironmentFile=/etc/sysconfig/mise
+EnvironmentFile=/etc/sysconfig/aro-mise
 ExecStartPre=-/usr/bin/docker rm -f %N
 ExecStart=/usr/bin/docker run \
   -p 5000:5000 \
-  -v /app/appsettings.json:/app/appsettings.json \
+  -v /app/mise/appsettings.json:/app/appsettings.json \
   --hostname %H \
   --name %N \
   --net=host \
@@ -938,7 +867,7 @@ cat >/etc/default/vsa-nodescan-agent.config <<EOF
 EOF
 
 echo "enabling aro services"
-for service in aro-dbtoken aro-monitor aro-portal aro-rp mise otel-collector auoms azsecd azsecmond mdsd mdm chronyd fluentbit; do
+for service in aro-dbtoken aro-monitor aro-portal aro-rp aro-mise aro-otel-collector auoms azsecd azsecmond mdsd mdm chronyd fluentbit; do
   systemctl enable $service.service
 done
 
