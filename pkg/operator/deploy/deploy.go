@@ -327,7 +327,7 @@ func (o *operator) clusterObject() (*arov1alpha1.Cluster, error) {
 }
 
 func (o *operator) SyncClusterObject(ctx context.Context) error {
-	resource, err := o.clusterObject(ctx)
+	resource, err := o.clusterObject()
 	if err != nil {
 		return err
 	}
