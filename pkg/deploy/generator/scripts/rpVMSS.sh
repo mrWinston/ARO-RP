@@ -253,6 +253,7 @@ ExecStart=/usr/bin/docker run \
   -v /etc/mdm.pem:/etc/mdm.pem \
   -v /var/etw:/var/etw:z \
   $MDMIMAGE \
+  -Input "otlp_grpc"
   -CertFile /etc/mdm.pem \
   -FrontEndUrl $MDMFRONTENDURL \
   -Logger Console \
@@ -300,7 +301,7 @@ processors:
 
 exporters:
   otlp:
-    endpoint: mdm:4317
+    endpoint: 0.0.0.0:4317
     tls:
       insecure: true
 
