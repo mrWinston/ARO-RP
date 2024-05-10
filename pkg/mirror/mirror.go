@@ -40,9 +40,11 @@ func Copy(ctx context.Context, dstreference, srcreference string, dstauth, srcau
 
 	_, err = copy.Image(ctx, policyctx, dst, src, &copy.Options{
 		SourceCtx: &types.SystemContext{
+			OSChoice:         "linux",
 			DockerAuthConfig: srcauth,
 		},
 		DestinationCtx: &types.SystemContext{
+			OSChoice:         "linux",
 			DockerAuthConfig: dstauth,
 		},
 		// Images that we mirror shouldn't change, so we can use the
