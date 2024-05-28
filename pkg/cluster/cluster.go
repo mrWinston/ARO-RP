@@ -94,10 +94,11 @@ type manager struct {
 	fpPrivateEndpoints       network.PrivateEndpointsClient    // TODO: use armPrivateEndpoints instead.
 	rpPrivateLinkServices    network.PrivateLinkServicesClient // TODO: use armRPPrivateLinkServices instead.
 	armRPPrivateLinkServices armnetwork.PrivateLinkServicesClient
+	armSubnets               armnetwork.SubnetsClient
 
 	dns     dns.Manager
 	storage storage.Manager
-	subnet  subnet.Manager
+	subnet  subnet.Manager // TODO: use armSubnet instead.
 	graph   graph.Manager
 
 	client           client.Client
@@ -209,6 +210,11 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		return nil, err
 	}
 
+	armSubnetsClient, err := armnetwork.NewSubnetsClient(r.SubscriptionID, fpCredential, &clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &manager{
 		log:                      log,
 		env:                      _env,
@@ -244,6 +250,7 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		fpPrivateEndpoints:       network.NewPrivateEndpointsClient(_env.Environment(), _env.SubscriptionID(), localFPAuthorizer),
 		rpPrivateLinkServices:    network.NewPrivateLinkServicesClient(_env.Environment(), _env.SubscriptionID(), msiAuthorizer),
 		armRPPrivateLinkServices: armRPPrivateLinkServices,
+		armSubnets:               armSubnetsClient,
 
 		dns:     dns.NewManager(_env, localFPAuthorizer),
 		storage: storage,
