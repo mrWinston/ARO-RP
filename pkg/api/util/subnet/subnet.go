@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/go-autorest/autorest/azure"
+
 	"github.com/Azure/ARO-RP/pkg/api"
 )
 
@@ -23,6 +25,20 @@ func Split(subnetID string) (string, string, error) {
 	}
 
 	return strings.Join(parts[:len(parts)-2], "/"), parts[len(parts)-1], nil
+}
+
+// ParseSubnetID extracts resourceGroupName, virtualNetworkName, and subnetName from subnetID.
+func ParseSubnetID(subnetID string) (resourceGroupName, virtualNetworkName, subnetName string, err error) {
+	virtualNetworkID, subnetName, err := Split(subnetID)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	r, err := azure.ParseResourceID(virtualNetworkID)
+	if err != nil {
+		return "", "", "", err
+	}
+	return r.ResourceGroup, r.ResourceName, subnetName, nil
 }
 
 // NetworkSecurityGroupID returns the NetworkSecurityGroup ID for a given subnet
