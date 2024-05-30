@@ -7,16 +7,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
 	mgmtnetwork "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-08-01/network"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/apparentlymart/go-cidr/cidr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/Azure/ARO-RP/pkg/api"
+	apiutil "github.com/Azure/ARO-RP/pkg/api/util/subnet"
 	"github.com/Azure/ARO-RP/pkg/database/cosmosdb"
 	"github.com/Azure/ARO-RP/pkg/env"
 	"github.com/Azure/ARO-RP/pkg/util/installer"
@@ -90,17 +93,18 @@ func (m *manager) createOrUpdateRouterIPFromCluster(ctx context.Context) error {
 	return err
 }
 
+// createOrUpdateRouterIPEarly prepares IP address for the API server early
 func (m *manager) createOrUpdateRouterIPEarly(ctx context.Context) error {
 	infraID := m.doc.OpenShiftCluster.Properties.InfraID
 
 	resourceGroup := stringutils.LastTokenByte(m.doc.OpenShiftCluster.Properties.ClusterProfile.ResourceGroupID, '/')
 	var ipAddress string
 	if m.doc.OpenShiftCluster.Properties.IngressProfiles[0].Visibility == api.VisibilityPublic {
-		ip, err := m.publicIPAddresses.Get(ctx, resourceGroup, infraID+"-default-v4", "")
+		ip, err := m.armPublicIPAddresses.Get(ctx, resourceGroup, infraID+"-default-v4", nil)
 		if err != nil {
 			return err
 		}
-		ipAddress = *ip.IPAddress
+		ipAddress = *ip.Properties.IPAddress
 	} else {
 		// there's no way to reserve private IPs in Azure, so we pick the
 		// highest free address in the subnet (i.e., there's a race here). Azure
@@ -112,7 +116,7 @@ func (m *manager) createOrUpdateRouterIPEarly(ctx context.Context) error {
 
 		workerProfiles, _ := api.GetEnrichedWorkerProfiles(m.doc.OpenShiftCluster.Properties)
 		workerSubnetId := workerProfiles[0].SubnetID
-		ipAddress, err = m.subnet.GetHighestFreeIP(ctx, workerSubnetId)
+		ipAddress, err = m.getHighestFreeIP(ctx, workerSubnetId)
 		if err != nil {
 			return err
 		}
@@ -131,6 +135,56 @@ func (m *manager) createOrUpdateRouterIPEarly(ctx context.Context) error {
 		return nil
 	})
 	return err
+}
+
+// getHighestFreeIP retrieves the highest free private IP address in the given subnetID.
+func (m *manager) getHighestFreeIP(ctx context.Context, subnetID string) (string, error) {
+	// Probably anyone who calls this function has a race condition.
+
+	resourceGroupName, virtualNetworkName, subnetName, err := apiutil.ParseSubnetID(subnetID)
+	subnet, err := m.armSubnets.Get(ctx, resourceGroupName, virtualNetworkName, subnetName, &armnetwork.SubnetsClientGetOptions{Expand: ptr.To("ipConfigurations")})
+	if err != nil {
+		return "", err
+	}
+
+	// grab the first addressPrefix in the subnet
+	var subnetCIDR *net.IPNet
+	if subnet.Properties.AddressPrefix == nil {
+		_, subnetCIDR, err = net.ParseCIDR(*subnet.Properties.AddressPrefixes[0])
+	} else {
+		_, subnetCIDR, err = net.ParseCIDR(*subnet.Properties.AddressPrefix)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	bottom, top := cidr.AddressRange(subnetCIDR)
+
+	allocated := map[string]struct{}{}
+
+	// first four addresses and the broadcast address are reserved:
+	// https://docs.microsoft.com/en-us/azure/virtual-network/private-ip-addresses#allocation-method
+	for i, ip := 0, bottom; i < 4 && !ip.Equal(top); i, ip = i+1, cidr.Inc(ip) {
+		allocated[ip.String()] = struct{}{}
+	}
+	allocated[top.String()] = struct{}{}
+
+	if subnet.Properties.IPConfigurations != nil {
+		for _, ipconfig := range subnet.Properties.IPConfigurations {
+			if ipconfig.Properties.PrivateIPAddress != nil {
+				allocated[*ipconfig.Properties.PrivateIPAddress] = struct{}{}
+			}
+		}
+	}
+
+	for ip := top; !ip.Equal(cidr.Dec(bottom)); ip = cidr.Dec(ip) {
+		if _, ok := allocated[ip.String()]; !ok {
+			return ip.String(), nil
+		}
+	}
+
+	return "", nil
 }
 
 func (m *manager) populateDatabaseIntIP(ctx context.Context) error {
