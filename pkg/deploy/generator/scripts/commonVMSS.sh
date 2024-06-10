@@ -166,6 +166,7 @@ dnf_install_pkgs() {
     retry cmd "$2" "${3:-}"
 }
 
+# configure_sshd
 # We need to configure PasswordAuthentication to yes in order for the VMSS Access JIT to work
 configure_sshd() {
     log "starting"
@@ -422,6 +423,25 @@ enable_services() {
     done
 }
 
+# get_reboot_offset
+# Parses the last character from the short hostname, and assigns an offset to minutes
+# Each increase in the hostname's suffix by 1 adds 5 minutes, starting with 0
+# args:
+# 1) minutes - nameref, integer; Empty variable used to hold the reboot offset minutes
+get_reboot_offset() {
+    local -n minutes="$1"
+
+    host="${HOSTNAME: -1}"
+    local -i minutes_offset=0
+    # A loop is used to acccount for scaling up the VMSS after the initial 0-2 are created, rather than a case statement
+    for i in {0..100}; do
+        if [ "$host" -eq "$i" ]; then
+            minutes="$minutes_offset"
+        fi
+        ((minutes_offset+=5))
+    done
+}
+
 # reboot_vm restores all selinux file contexts, then schedules a reboot for one hour later
 # Reboots should scheduled after all VM extensions have had time to complete
 # Reference: https://learn.microsoft.com/en-us/azure/virtual-machines/extensions/custom-script-linux#tips
@@ -430,8 +450,10 @@ reboot_vm() {
 
     configure_selinux "true"
     
-    hour="$(date -d "1 hour" +%H:%M)"
-    shutdown -r "$hour" "Post deployment reboot is happening now"
+    local -i offset
+    get_reboot_offset offset
+    hour="$(date -d "1 hour" +%H:%M + $offset minutes)"
+    shutdown -r "$hour" "Post deployment reboot is happening at $hour"
 }
 
 # configure_rpm_repos
