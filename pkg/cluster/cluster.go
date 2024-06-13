@@ -43,6 +43,7 @@ import (
 	"github.com/Azure/ARO-RP/pkg/util/dns"
 	"github.com/Azure/ARO-RP/pkg/util/encryption"
 	utilgraph "github.com/Azure/ARO-RP/pkg/util/graph"
+	"github.com/Azure/ARO-RP/pkg/util/platformworkloadidentity"
 	"github.com/Azure/ARO-RP/pkg/util/refreshable"
 	"github.com/Azure/ARO-RP/pkg/util/storage"
 	"github.com/Azure/ARO-RP/pkg/util/subnet"
@@ -119,10 +120,12 @@ type manager struct {
 	now func() time.Time
 
 	openShiftClusterDocumentVersioner openShiftClusterDocumentVersioner
+
+	platformWorkloadIdentityRolesByVersion platformworkloadidentity.PlatformWorkloadIdentityRolesByVersion
 }
 
 // New returns a cluster manager
-func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database.OpenShiftClusters, dbGateway database.Gateway, dbOpenShiftVersions database.OpenShiftVersions, aead encryption.AEAD,
+func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database.OpenShiftClusters, dbGateway database.Gateway, dbOpenShiftVersions database.OpenShiftVersions, dbPlatformWorkloadIdentityRoleSets database.PlatformWorkloadIdentityRoleSets, aead encryption.AEAD,
 	billing billing.Manager, doc *api.OpenShiftClusterDocument, subscriptionDoc *api.SubscriptionDocument, hiveClusterManager hive.ClusterManager, metricsEmitter metrics.Emitter,
 ) (Interface, error) {
 	r, err := azure.ParseResourceID(doc.OpenShiftCluster.ID)
@@ -185,6 +188,11 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		return nil, err
 	}
 
+	platformWorkloadIdentityRolesByVersion, err := platformworkloadidentity.NewPlatformWorkloadIdentityRolesByVersion(ctx, doc.OpenShiftCluster, dbPlatformWorkloadIdentityRoleSets)
+	if err != nil {
+		return nil, err
+	}
+
 	return &manager{
 		log:                   log,
 		env:                   _env,
@@ -223,10 +231,11 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		subnet:  subnet.NewManager(_env.Environment(), r.SubscriptionID, fpAuthorizer),
 		graph:   graph.NewManager(_env, log, aead, storage),
 
-		installViaHive:                    installViaHive,
-		adoptViaHive:                      adoptByHive,
-		hiveClusterManager:                hiveClusterManager,
-		now:                               func() time.Time { return time.Now() },
-		openShiftClusterDocumentVersioner: new(openShiftClusterDocumentVersionerService),
+		installViaHive:                         installViaHive,
+		adoptViaHive:                           adoptByHive,
+		hiveClusterManager:                     hiveClusterManager,
+		now:                                    func() time.Time { return time.Now() },
+		openShiftClusterDocumentVersioner:      new(openShiftClusterDocumentVersionerService),
+		platformWorkloadIdentityRolesByVersion: platformWorkloadIdentityRolesByVersion,
 	}, nil
 }
