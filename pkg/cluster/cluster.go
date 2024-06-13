@@ -32,6 +32,7 @@ import (
 	"github.com/Azure/ARO-RP/pkg/metrics"
 	aroclient "github.com/Azure/ARO-RP/pkg/operator/clientset/versioned"
 	"github.com/Azure/ARO-RP/pkg/operator/deploy"
+	"github.com/Azure/ARO-RP/pkg/util/azureclient/azuresdk/armauthorization"
 	"github.com/Azure/ARO-RP/pkg/util/azureclient/azuresdk/armnetwork"
 	"github.com/Azure/ARO-RP/pkg/util/azureclient/azuresdk/common"
 	"github.com/Azure/ARO-RP/pkg/util/azureclient/mgmt/authorization"
@@ -89,6 +90,7 @@ type manager struct {
 	virtualNetworkLinks   privatedns.VirtualNetworkLinksClient
 	roleAssignments       authorization.RoleAssignmentsClient
 	roleDefinitions       authorization.RoleDefinitionsClient
+	armRoleDefinitions    armauthorization.RoleDefinitionsClient
 	denyAssignments       authorization.DenyAssignmentClient
 	fpPrivateEndpoints    network.PrivateEndpointsClient
 	rpPrivateLinkServices network.PrivateLinkServicesClient
@@ -188,6 +190,11 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		return nil, err
 	}
 
+	armRoleDefinitionsClient, err := armauthorization.NewRoleDefinitionsClient(fpCredClusterTenant, &clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	platformWorkloadIdentityRolesByVersion, err := platformworkloadidentity.NewPlatformWorkloadIdentityRolesByVersion(ctx, doc.OpenShiftCluster, dbPlatformWorkloadIdentityRoleSets)
 	if err != nil {
 		return nil, err
@@ -222,6 +229,7 @@ func New(ctx context.Context, log *logrus.Entry, _env env.Interface, db database
 		virtualNetworkLinks:   privatedns.NewVirtualNetworkLinksClient(_env.Environment(), r.SubscriptionID, fpAuthorizer),
 		roleAssignments:       authorization.NewRoleAssignmentsClient(_env.Environment(), r.SubscriptionID, fpAuthorizer),
 		roleDefinitions:       authorization.NewRoleDefinitionsClient(_env.Environment(), r.SubscriptionID, fpAuthorizer),
+		armRoleDefinitions:    armRoleDefinitionsClient,
 		denyAssignments:       authorization.NewDenyAssignmentsClient(_env.Environment(), r.SubscriptionID, fpAuthorizer),
 		fpPrivateEndpoints:    network.NewPrivateEndpointsClient(_env.Environment(), _env.SubscriptionID(), localFPAuthorizer),
 		rpPrivateLinkServices: network.NewPrivateLinkServicesClient(_env.Environment(), _env.SubscriptionID(), msiAuthorizer),
