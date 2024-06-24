@@ -98,11 +98,6 @@ type frontend struct {
 	now                          func() time.Time
 	systemDataClusterDocEnricher func(*api.OpenShiftClusterDocument, *api.SystemData)
 
-	systemDataSyncSetEnricher              func(*api.ClusterManagerConfigurationDocument, *api.SystemData)
-	systemDataMachinePoolEnricher          func(*api.ClusterManagerConfigurationDocument, *api.SystemData)
-	systemDataSyncIdentityProviderEnricher func(*api.ClusterManagerConfigurationDocument, *api.SystemData)
-	systemDataSecretEnricher               func(*api.ClusterManagerConfigurationDocument, *api.SystemData)
-
 	streamResponder StreamResponder
 }
 
